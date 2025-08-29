@@ -8,10 +8,12 @@ import java.util.List;
 
 public class ICCProfile {
 
+    private final String filePath;
     private final ICCHeader header;
     private final List<Tag> tags;
 
     public ICCProfile(String filePath) throws IOException {
+        this.filePath = filePath;
         try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {
             this.header = parseHeader(raf);
             this.tags = parseTagTable(raf);
@@ -24,6 +26,15 @@ public class ICCProfile {
 
     public List<Tag> getTags() {
         return tags;
+    }
+
+    public byte[] readTagData(Tag tag) throws IOException {
+        try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {
+            raf.seek(tag.getOffset());
+            byte[] data = new byte[(int) tag.getSize()];
+            raf.readFully(data);
+            return data;
+        }
     }
 
     private ICCHeader parseHeader(RandomAccessFile raf) throws IOException {

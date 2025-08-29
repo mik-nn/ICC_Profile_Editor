@@ -25,6 +25,8 @@ public class App extends Application {
 
     private TextArea headerTextArea = new TextArea("No file opened");
     private TableView<Tag> tagTableView = new TableView<>();
+    private TextArea tagDataTextArea = new TextArea();
+    private ICCProfile iccProfile;
 
     @Override
     public void start(Stage stage) {
@@ -46,7 +48,9 @@ public class App extends Application {
         Tab commonTab = new Tab("Common");
         SplitPane commonSplitPane = new SplitPane();
         commonSplitPane.setOrientation(javafx.geometry.Orientation.VERTICAL);
-        commonSplitPane.getItems().addAll(headerTextArea, tagTableView);
+        SplitPane tagSplitPane = new SplitPane();
+        tagSplitPane.getItems().addAll(tagTableView, tagDataTextArea);
+        commonSplitPane.getItems().addAll(headerTextArea, tagSplitPane);
         commonTab.setContent(commonSplitPane);
 
         // Tag Table Columns
@@ -58,13 +62,19 @@ public class App extends Application {
         sizeCol.setCellValueFactory(new PropertyValueFactory<>("size"));
         tagTableView.getColumns().addAll(signatureCol, offsetCol, sizeCol);
 
+        tagTableView.getSelectionModel().selectedItemProperty().addListener((obs, oldSelection, newSelection) -> {
+            if (newSelection != null) {
+                displayTagData(newSelection);
+            }
+        });
+
         Tab mimakiTab = new Tab("Mimaki");
         mimakiTab.setContent(new BorderPane());
 
         tabPane.getTabs().addAll(commonTab, mimakiTab);
         root.setCenter(tabPane);
 
-        Scene scene = new Scene(root, 640, 480);
+        Scene scene = new Scene(root, 800, 600);
         stage.setScene(scene);
         stage.setTitle("ICC Profile Editor");
         stage.show();
@@ -76,7 +86,7 @@ public class App extends Application {
         File file = fileChooser.showOpenDialog(stage);
         if (file != null) {
             try {
-                ICCProfile iccProfile = new ICCProfile(file.getAbsolutePath());
+                iccProfile = new ICCProfile(file.getAbsolutePath());
                 headerTextArea.setText(iccProfile.getHeader().toString());
                 ObservableList<Tag> tags = FXCollections.observableArrayList(iccProfile.getTags());
                 tagTableView.setItems(tags);
@@ -84,6 +94,23 @@ public class App extends Application {
                 headerTextArea.setText("Error reading ICC profile: " + e.getMessage());
             }
         }
+    }
+
+    private void displayTagData(Tag tag) {
+        try {
+            byte[] tagData = iccProfile.readTagData(tag);
+            tagDataTextArea.setText(bytesToHex(tagData) + "\n\n" + new String(tagData));
+        } catch (IOException e) {
+            tagDataTextArea.setText("Error reading tag data: " + e.getMessage());
+        }
+    }
+
+    private String bytesToHex(byte[] bytes) {
+        StringBuilder sb = new StringBuilder();
+        for (byte b : bytes) {
+            sb.append(String.format("%02X ", b));
+        }
+        return sb.toString();
     }
 
     public static void main(String[] args) {
