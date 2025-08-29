@@ -3,43 +3,65 @@ package com.mik.icc.icceditor;
 import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.List;
 
 public class ICCProfile {
 
     private final ICCHeader header;
+    private final List<Tag> tags;
 
     public ICCProfile(String filePath) throws IOException {
-        this.header = parseHeader(filePath);
+        try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {
+            this.header = parseHeader(raf);
+            this.tags = parseTagTable(raf);
+        }
     }
 
     public ICCHeader getHeader() {
         return header;
     }
 
-    private ICCHeader parseHeader(String filePath) throws IOException {
-        try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {
-            ICCHeader header = new ICCHeader();
+    public List<Tag> getTags() {
+        return tags;
+    }
 
-            header.size = raf.readInt();
-            header.cmmType = readString(raf, 4);
-            header.version = readVersion(raf);
-            header.deviceClass = readString(raf, 4);
-            header.colorSpace = readString(raf, 4);
-            header.pcs = readString(raf, 4);
-            header.creationDateTime = readDateTime(raf);
-            header.signature = readString(raf, 4);
-            header.primaryPlatform = readString(raf, 4);
-            header.flags = raf.readInt();
-            header.manufacturer = readString(raf, 4);
-            header.model = readString(raf, 4);
-            header.attributes = raf.readLong();
-            raf.skipBytes(4); // Rendering Intent is at offset 64, but attributes is a long (8 bytes), so we are at 64, not 60.
-            header.renderingIntent = readString(raf, 4);
-            raf.skipBytes(12); // Skip illuminant
-            header.creator = readString(raf, 4);
+    private ICCHeader parseHeader(RandomAccessFile raf) throws IOException {
+        raf.seek(0);
+        ICCHeader header = new ICCHeader();
 
-            return header;
+        header.size = raf.readInt();
+        header.cmmType = readString(raf, 4);
+        header.version = readVersion(raf);
+        header.deviceClass = readString(raf, 4);
+        header.colorSpace = readString(raf, 4);
+        header.pcs = readString(raf, 4);
+        header.creationDateTime = readDateTime(raf);
+        header.signature = readString(raf, 4);
+        header.primaryPlatform = readString(raf, 4);
+        header.flags = raf.readInt();
+        header.manufacturer = readString(raf, 4);
+        header.model = readString(raf, 4);
+        header.attributes = raf.readLong();
+        raf.skipBytes(4); // Rendering Intent is at offset 64, but attributes is a long (8 bytes), so we are at 64, not 60.
+        header.renderingIntent = readString(raf, 4);
+        raf.skipBytes(12); // Skip illuminant
+        header.creator = readString(raf, 4);
+
+        return header;
+    }
+
+    private List<Tag> parseTagTable(RandomAccessFile raf) throws IOException {
+        raf.seek(128);
+        int tagCount = raf.readInt();
+        List<Tag> tags = new ArrayList<>();
+        for (int i = 0; i < tagCount; i++) {
+            String signature = readString(raf, 4);
+            long offset = raf.readInt();
+            long size = raf.readInt();
+            tags.add(new Tag(signature, offset, size));
         }
+        return tags;
     }
 
     private String readString(RandomAccessFile raf, int length) throws IOException {
