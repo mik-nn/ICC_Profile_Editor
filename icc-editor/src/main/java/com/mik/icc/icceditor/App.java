@@ -2,22 +2,23 @@ package com.mik.icc.icceditor;
 
 import javafx.application.Application;
 import javafx.scene.Scene;
-import javafx.scene.control.Label;
 import javafx.scene.control.Menu;
 import javafx.scene.control.MenuBar;
 import javafx.scene.control.MenuItem;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import javafx.scene.control.TextArea;
 import javafx.scene.layout.BorderPane;
 import javafx.scene.layout.StackPane;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
 import java.io.File;
+import java.io.IOException;
 
 public class App extends Application {
 
-    private Label filePathLabel = new Label("No file opened");
+    private TextArea headerTextArea = new TextArea("No file opened");
 
     @Override
     public void start(Stage stage) {
@@ -36,7 +37,7 @@ public class App extends Application {
         TabPane tabPane = new TabPane();
 
         Tab commonTab = new Tab("Common");
-        commonTab.setContent(new StackPane(filePathLabel));
+        commonTab.setContent(new StackPane(headerTextArea));
 
         Tab mimakiTab = new Tab("Mimaki");
         mimakiTab.setContent(new StackPane());
@@ -56,7 +57,12 @@ public class App extends Application {
         fileChooser.setTitle("Open ICC Profile");
         File file = fileChooser.showOpenDialog(stage);
         if (file != null) {
-            filePathLabel.setText(file.getAbsolutePath());
+            try {
+                ICCProfile iccProfile = new ICCProfile(file.getAbsolutePath());
+                headerTextArea.setText(iccProfile.getHeader().toString());
+            } catch (IOException e) {
+                headerTextArea.setText("Error reading ICC profile: " + e.getMessage());
+            }
         }
     }
 
