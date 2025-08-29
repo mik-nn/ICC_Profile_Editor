@@ -3,18 +3,12 @@ package com.mik.icc.icceditor;
 import javafx.application.Application;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
-import javafx.scene.control.Menu;
-import javafx.scene.control.MenuBar;
-import javafx.scene.control.MenuItem;
-import javafx.scene.control.SplitPane;
-import javafx.scene.control.Tab;
-import javafx.scene.control.TabPane;
-import javafx.scene.control.TableColumn;
-import javafx.scene.control.TableView;
-import javafx.scene.control.TextArea;
+import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 import javafx.scene.layout.BorderPane;
+import javafx.scene.layout.HBox;
 import javafx.stage.FileChooser;
 import javafx.stage.Stage;
 
@@ -26,6 +20,8 @@ public class App extends Application {
     private TextArea headerTextArea = new TextArea("No file opened");
     private TableView<Tag> tagTableView = new TableView<>();
     private TextArea tagDataTextArea = new TextArea();
+    private Button editButton = new Button("Edit");
+    private Button saveButton = new Button("Save");
     private ICCProfile iccProfile;
     private Stage stage;
 
@@ -48,12 +44,19 @@ public class App extends Application {
 
         // Common Tab
         Tab commonTab = new Tab("Common");
+        BorderPane commonTabPane = new BorderPane();
         SplitPane commonSplitPane = new SplitPane();
         commonSplitPane.setOrientation(javafx.geometry.Orientation.VERTICAL);
         SplitPane tagSplitPane = new SplitPane();
         tagSplitPane.getItems().addAll(tagTableView, tagDataTextArea);
         commonSplitPane.getItems().addAll(headerTextArea, tagSplitPane);
-        commonTab.setContent(commonSplitPane);
+        commonTabPane.setCenter(commonSplitPane);
+
+        HBox buttonBox = new HBox(10, editButton, saveButton);
+        buttonBox.setPadding(new Insets(10));
+        commonTabPane.setBottom(buttonBox);
+        commonTab.setContent(commonTabPane);
+
 
         // Tag Table Columns
         TableColumn<Tag, String> signatureCol = new TableColumn<>("Signature");
@@ -69,6 +72,21 @@ public class App extends Application {
                 displayTagData(newSelection);
             }
         });
+
+        // Buttons
+        editButton.setOnAction(e -> {
+            tagDataTextArea.setEditable(true);
+            saveButton.setDisable(false);
+            editButton.setDisable(true);
+        });
+
+        saveButton.setOnAction(e -> {
+            tagDataTextArea.setEditable(false);
+            saveButton.setDisable(true);
+            editButton.setDisable(false);
+        });
+        saveButton.setDisable(true);
+        tagDataTextArea.setEditable(false);
 
         Tab mimakiTab = new Tab("Mimaki");
         mimakiTab.setContent(new BorderPane());
