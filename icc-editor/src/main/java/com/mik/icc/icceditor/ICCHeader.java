@@ -14,7 +14,7 @@ public class ICCHeader {
     public String manufacturer;
     public String model;
     public long attributes;
-    public String renderingIntent;
+    public int renderingIntent;
     public String creator;
 
     @Override
@@ -33,8 +33,18 @@ public class ICCHeader {
                 ", manufacturer='" + manufacturer + "'\n" +
                 ", model='" + model + "'\n" +
                 ", attributes=" + attributes + "\n" +
-                ", renderingIntent='" + renderingIntent + "'\n" +
+                ", renderingIntent='" + getRenderingIntentString() + "'\n" +
                 ", creator='" + creator + "'\n" +
                 '}';
+    }
+
+    public String getRenderingIntentString() {
+        return switch (renderingIntent) {
+            case 0 -> "Perceptual";
+            case 1 -> "Relative Colorimetric";
+            case 2 -> "Saturation";
+            case 3 -> "Absolute Colorimetric";
+            default -> "Unknown";
+        };
     }
 }

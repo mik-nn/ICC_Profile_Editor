@@ -99,7 +99,11 @@ public class App extends Application {
     private void displayTagData(Tag tag) {
         try {
             byte[] tagData = iccProfile.readTagData(tag);
-            tagDataTextArea.setText(bytesToHex(tagData) + "\n\n" + new String(tagData));
+            String text = bytesToHex(tagData) + "\n\n" + new String(tagData);
+            if (tagData.length < tag.getSize()) {
+                text += "\n\n... (data truncated)";
+            }
+            tagDataTextArea.setText(text);
         } catch (IOException e) {
             tagDataTextArea.setText("Error reading tag data: " + e.getMessage());
         }

@@ -31,7 +31,8 @@ public class ICCProfile {
     public byte[] readTagData(Tag tag) throws IOException {
         try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {
             raf.seek(tag.getOffset());
-            byte[] data = new byte[(int) tag.getSize()];
+            int sizeToRead = (int) Math.min(tag.getSize(), 1024);
+            byte[] data = new byte[sizeToRead];
             raf.readFully(data);
             return data;
         }
@@ -55,7 +56,7 @@ public class ICCProfile {
         header.model = readString(raf, 4);
         header.attributes = raf.readLong();
         raf.skipBytes(4); // Rendering Intent is at offset 64, but attributes is a long (8 bytes), so we are at 64, not 60.
-        header.renderingIntent = readString(raf, 4);
+        header.renderingIntent = raf.readInt();
         raf.skipBytes(12); // Skip illuminant
         header.creator = readString(raf, 4);
 
