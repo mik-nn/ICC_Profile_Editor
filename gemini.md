@@ -29,66 +29,14 @@ Build a **cross‑platform ICC profile editor** in **Java + JavaFX** with:
 > git push origin main
 > ```
 
-1. **Project Setup**
-   - Create Maven JavaFX project structure
-   - Add dependencies to `pom.xml`
-   - Verify `mvn javafx:run` launches empty UI  
-   **Status:** ⬜
-
-2. **Core ICC Parser**
-   - Implement `ICCProfileReader` (header + tag table parsing)
-   - Implement `ICCProfileWriter` (save modified profiles)
-   - Unit tests for parsing/writing  
-   **Status:** ⬜
-
-3. **Encoding Utilities**
-   - `EncodingUtils` for UTF‑8, UTF‑16LE, ASCII conversions
-   - Detect encoding from BOM or user selection  
-   **Status:** ⬜
-
-4. **UI — Common Tab**
-   - Header editor form
-   - Tag list table (signature, type, size, description)
-   - Tag editor pane with Hex/Text modes + encoding dropdown  
-   **Status:** ⬜
-
-5. **UI — Mimaki Tab**
-   - Search/replace media names in MMK* tags (multi‑encoding)
-   - Cxf→DevS/CIED conversion tool  
-   **Status:** ⬜
-
-6. **Copy Header/Tags Feature**
-   - Load second profile in background
-   - Copy selected header/tags into current profile  
-   **Status:** ⬜
-
-7. **Validation & Undo/Redo**
-   - Validate ICC structure before save
-   - Implement undo/redo stack  
-   **Status:** ⬜
-
-8. **Packaging**
-   - JPackage builds for Windows, macOS, Linux
-   - Test installers on each OS  
-   **Status:** ⬜
-
 ---
 
-## 📏 Coding Standards
-- Follow Java naming conventions
-- Keep UI responsive (JavaFX best practices)
-- All new code must have unit tests
-- Commit messages: `feat:`, `fix:`, `chore:`, `✅ Step X completed: ...`
-
----
-
-## 🤖 Gemini CLI Usage
-- Use `gemini edit` for generating or refactoring code
-- Use `gemini ask` for explanations or design discussions
-- Always reference this `GEMINI.md` for context before coding
-
----
-
-## 📌 Notes
-- ICC spec reference: [International Color Consortium](https://color.org/index.xalter)
-- Mimaki tag behavior documented in `docs/mimaki_notes.md`
+### 1. **Project Setup**
+**Tasks:**
+- Create Maven JavaFX project structure:
+  ```bash
+  mvn archetype:generate \
+    -DgroupId=com.mik.icc \
+    -DartifactId=icc-profile-editor \
+    -DarchetypeArtifactId=maven-archetype-quickstart \
+    -DinteractiveMode=false
