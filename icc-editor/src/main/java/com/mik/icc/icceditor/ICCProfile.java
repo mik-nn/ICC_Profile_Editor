@@ -55,7 +55,6 @@ public class ICCProfile {
         header.manufacturer = readString(raf, 4);
         header.model = readString(raf, 4);
         header.attributes = raf.readLong();
-        raf.skipBytes(4); // Rendering Intent is at offset 64, but attributes is a long (8 bytes), so we are at 64, not 60.
         header.renderingIntent = raf.readInt();
         raf.skipBytes(12); // Skip illuminant
         header.creator = readString(raf, 4);
