@@ -27,9 +27,11 @@ public class App extends Application {
     private TableView<Tag> tagTableView = new TableView<>();
     private TextArea tagDataTextArea = new TextArea();
     private ICCProfile iccProfile;
+    private Stage stage;
 
     @Override
     public void start(Stage stage) {
+        this.stage = stage;
         BorderPane root = new BorderPane();
 
         // Menu
@@ -83,6 +85,9 @@ public class App extends Application {
     private void openFile(Stage stage) {
         FileChooser fileChooser = new FileChooser();
         fileChooser.setTitle("Open ICC Profile");
+        fileChooser.getExtensionFilters().addAll(
+                new FileChooser.ExtensionFilter("ICC Profiles", "*.icc", "*.icm"),
+                new FileChooser.ExtensionFilter("All Files", "*.*"));
         File file = fileChooser.showOpenDialog(stage);
         if (file != null) {
             try {
@@ -90,6 +95,7 @@ public class App extends Application {
                 headerTextArea.setText(iccProfile.getHeader().toString());
                 ObservableList<Tag> tags = FXCollections.observableArrayList(iccProfile.getTags());
                 tagTableView.setItems(tags);
+                this.stage.setTitle("ICC Profile Editor - " + file.getName());
             } catch (IOException e) {
                 headerTextArea.setText("Error reading ICC profile: " + e.getMessage());
             }
