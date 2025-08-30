@@ -4,9 +4,9 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 
 public class XYZTagData implements TagData {
-    private final double x;
-    private final double y;
-    private final double z;
+    private double x;
+    private double y;
+    private double z;
 
     public XYZTagData(double x, double y, double z) {
         this.x = x;
@@ -18,12 +18,24 @@ public class XYZTagData implements TagData {
         return x;
     }
 
+    public void setX(double x) {
+        this.x = x;
+    }
+
     public double getY() {
         return y;
     }
 
+    public void setY(double y) {
+        this.y = y;
+    }
+
     public double getZ() {
         return z;
+    }
+
+    public void setZ(double z) {
+        this.z = z;
     }
 
     @Override

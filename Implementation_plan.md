@@ -24,7 +24,7 @@ Develop a **cross‑platform ICC profile editor** in **Java + JavaFX** with:
 
 > **Rule:** After completing and verifying each step, mark it with ✅ and run:
 > ```bash
-> git add .
+> git add . 
 > git commit -m "✅ Step X completed: <short description>"
 > git push origin main
 > ```
@@ -69,8 +69,8 @@ Develop a **cross‑platform ICC profile editor** in **Java + JavaFX** with:
 
 ### ✅ 7. **Develop Mimaki-Specific Tools**
 **Tasks:**
-- Implement multi-encoding media name search/replace.
-- Implement Cxf→DevS/CIED conversion.
+- Implement multi-encoding media name search/replace for `MMK1` and `MMK2` tags.
+- Research and implement Cxf→DevS/CIED conversion.
 
 ### ✅ 8. **Enhance UI/UX**
 **Tasks:**
@@ -82,7 +82,7 @@ Develop a **cross‑platform ICC profile editor** in **Java + JavaFX** with:
 - Write comprehensive unit tests.
 - Configure JPackage for distribution.
 
-### 10. **Enhance Mimaki Tools**
+### ✅ 10. **Enhance Mimaki Tools**
 **Tasks:**
 - Implement media name search/replace for `MMK1` and `MMK2` tags.
 - Research and implement Cxf→DevS/CIED conversion.
@@ -91,3 +91,17 @@ Develop a **cross‑platform ICC profile editor** in **Java + JavaFX** with:
 **Tasks:**
 - Extend `TagType` and `TagData` to support more ICC standard tag types (e.g., `XYZType`, `curvType`).
 - Develop specialized UI components for editing each standard tag type.
+
+### ✅ 12. **Implement Double-Click Editing**
+**Tasks:**
+- Enable double-click editing for header fields.
+- Enable double-click editing for tag data (in specialized editors).
+
+### ✅ 13. **Refine Header Layout**
+**Tasks:**
+- Ensure the 2-column layout for the header is visually appealing and well-aligned.
+
+### ✅ 14. **Enhance Overall UI Aesthetics**
+**Tasks:**
+- Apply CSS styling to improve the look and feel of the application.
+- Review and improve layout and spacing of UI elements.

@@ -1,0 +1,47 @@
+.root {
+    -fx-font-family: "Segoe UI", Helvetica, Arial, sans-serif;
+    -fx-font-size: 14px;
+}
+
+.label {
+    -fx-font-weight: bold;
+    -fx-padding: 5px 0;
+}
+
+.text-field {
+    -fx-padding: 5px;
+    -fx-border-color: #ccc;
+    -fx-border-radius: 3px;
+}
+
+.button {
+    -fx-background-color: #007bff;
+    -fx-text-fill: white;
+    -fx-padding: 8px 15px;
+    -fx-border-radius: 5px;
+}
+
+.button:hover {
+    -fx-background-color: #0056b3;
+}
+
+.tab-pane .tab-header-area .tab {
+    -fx-background-color: #f0f0f0;
+    -fx-padding: 10px 20px;
+}
+
+.tab-pane .tab-header-area .tab:selected {
+    -fx-background-color: #e0e0e0;
+}
+
+.table-view .column-header {
+    -fx-background-color: #f0f0f0;
+    -fx-font-weight: bold;
+}
+
+.text-area {
+    -fx-control-inner-background: #f8f8f8;
+    -fx-highlight-fill: #b5d5ff;
+    -fx-highlight-text-fill: black;
+    -fx-text-fill: #333;
+}
