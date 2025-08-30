@@ -4,6 +4,7 @@ public enum TagType {
     TEXT_TYPE("text"),
     XYZ_TYPE("XYZ "),
     CURVE_TYPE("curv"),
+    MLUC_TYPE("mluc"),
     UNKNOWN("unknown");
 
     private final String signature;

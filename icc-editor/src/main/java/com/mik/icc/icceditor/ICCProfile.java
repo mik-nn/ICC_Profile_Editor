@@ -46,6 +46,57 @@ public class ICCProfile {
                         return new TextTagData(text.trim(), StandardCharsets.UTF_8);
                     }
                     break;
+                case XYZ_TYPE:
+                    if (data.length >= 12) {
+                        ByteBuffer xyzBuffer = ByteBuffer.wrap(data, 0, 12).order(ByteOrder.BIG_ENDIAN);
+                        double x = XYZTagData.iccS15Fixed16ToFloat(xyzBuffer.getInt());
+                        double y = XYZTagData.iccS15Fixed16ToFloat(xyzBuffer.getInt());
+                        double z = XYZTagData.iccS15Fixed16ToFloat(xyzBuffer.getInt());
+                        return new XYZTagData(x, y, z);
+                    }
+                    break;
+                case CURVE_TYPE:
+                    if (data.length >= 8) { // 4 bytes for count, 4 bytes for reserved
+                        ByteBuffer curveBuffer = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
+                        curveBuffer.position(4); // Skip type signature and reserved
+                        int count = curveBuffer.getInt();
+                        double[] curvePoints = new double[count];
+                        for (int i = 0; i < count; i++) {
+                            curvePoints[i] = CurveTagData.iccUnsignedShortToFloat(curveBuffer.getShort());
+                        }
+                        return new CurveTagData(curvePoints);
+                    }
+                    break;
+                case MLUC_TYPE:
+                    if (data.length >= 16) { // type signature (4) + reserved (4) + numRecords (4) + recordSize (4)
+                        ByteBuffer mlucBuffer = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
+                        mlucBuffer.position(8); // Skip type signature and reserved
+                        int numRecords = mlucBuffer.getInt();
+                        int recordSize = mlucBuffer.getInt();
+
+                        MultiLocalizedUnicodeTagData mlucData = new MultiLocalizedUnicodeTagData();
+                        for (int i = 0; i < numRecords; i++) {
+                            int entryStart = 16 + (i * recordSize);
+                            mlucBuffer.position(entryStart);
+                            byte[] languageCodeBytes = new byte[2];
+                            mlucBuffer.get(languageCodeBytes);
+                            byte[] countryCodeBytes = new byte[2];
+                            mlucBuffer.get(countryCodeBytes);
+                            String languageCode = new String(languageCodeBytes, StandardCharsets.US_ASCII);
+                            String countryCode = new String(countryCodeBytes, StandardCharsets.US_ASCII);
+                            int offset = mlucBuffer.getInt();
+                            int length = mlucBuffer.getInt();
+
+                            // Read string data
+                            byte[] stringBytes = new byte[length];
+                            mlucBuffer.position(offset);
+                            mlucBuffer.get(stringBytes);
+                            String text = new String(stringBytes, StandardCharsets.UTF_16BE);
+                            mlucData.addLocalizedString(languageCode, countryCode, text);
+                        }
+                        return mlucData;
+                    }
+                    break;
                 case UNKNOWN:
                 default:
                     // For now, return a generic TagData for unknown types

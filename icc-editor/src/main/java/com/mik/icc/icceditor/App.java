@@ -22,6 +22,7 @@ public class App extends Application {
 
     private TableView<Tag> tagTableView = new TableView<>();
     private TextArea tagDataTextArea = new TextArea();
+    private StackPane tagEditorPane = new StackPane();
     private Button editButton = new Button("Edit");
     private Button saveButton = new Button("Save");
     private ICCProfile iccProfile;
@@ -54,7 +55,7 @@ public class App extends Application {
         commonSplitPane = new SplitPane();
         commonSplitPane.setOrientation(javafx.geometry.Orientation.VERTICAL);
         SplitPane tagSplitPane = new SplitPane();
-        tagSplitPane.getItems().addAll(tagTableView, tagDataTextArea);
+        tagSplitPane.getItems().addAll(tagTableView, tagEditorPane);
         
         // Initialize headerEditor with a placeholder or empty data
         headerEditor = createHeaderEditor(new ICCHeader()); // Placeholder
@@ -152,20 +153,47 @@ public class App extends Application {
             Tag selectedTag = tagTableView.getSelectionModel().getSelectedItem();
             if (selectedTag != null) {
                 try {
-                    TagData newTagData;
-                    if (hexTextToggle.isSelected()) { // Text mode
-                        Charset selectedCharset = Charset.forName(encodingChoiceBox.getValue());
-                        newTagData = new TextTagData(tagDataTextArea.getText(), selectedCharset);
-                    } else { // Hex mode
-                        String hexString = tagDataTextArea.getText().replaceAll("\\s+", "");
-                        byte[] data = new byte[hexString.length() / 2];
-                        for (int i = 0; i < hexString.length(); i += 2) {
-                            data[i / 2] = (byte) ((Character.digit(hexString.charAt(i), 16) << 4)
-                                                 + Character.digit(hexString.charAt(i + 1), 16));
+                    TagData newTagData = null;
+                    if (tagEditorPane.getChildren().get(0) instanceof TextArea) { // Text or Generic
+                        if (hexTextToggle.isSelected()) { // Text mode
+                            Charset selectedCharset = Charset.forName(encodingChoiceBox.getValue());
+                            newTagData = new TextTagData(tagDataTextArea.getText(), selectedCharset);
+                        } else { // Hex mode
+                            String hexString = tagDataTextArea.getText().replaceAll("\\s+", "");
+                            byte[] data = new byte[hexString.length() / 2];
+                            for (int i = 0; i < hexString.length(); i += 2) {
+                                data[i / 2] = (byte) ((Character.digit(hexString.charAt(i), 16) << 4)
+                                                     + Character.digit(hexString.charAt(i + 1), 16));
+                            }
+                            newTagData = new GenericTagData(data);
                         }
-                        newTagData = new GenericTagData(data);
+                    } else if (tagEditorPane.getChildren().get(0) instanceof GridPane) { // XYZ
+                        GridPane xyzEditor = (GridPane) tagEditorPane.getChildren().get(0);
+                        double x = Double.parseDouble(((TextField) xyzEditor.getChildren().get(1)).getText());
+                        double y = Double.parseDouble(((TextField) xyzEditor.getChildren().get(3)).getText());
+                        double z = Double.parseDouble(((TextField) xyzEditor.getChildren().get(5)).getText());
+                        newTagData = new XYZTagData(x, y, z);
+                    } else if (tagEditorPane.getChildren().get(0) instanceof TextArea) { // Curve
+                        TextArea curveTextArea = (TextArea) tagEditorPane.getChildren().get(0);
+                        String[] points = curveTextArea.getText().replace("Curve Points: ", "").replace("[", "").replace("]", "").split(", ");
+                        double[] curvePoints = new double[points.length];
+                        for (int i = 0; i < points.length; i++) {
+                            curvePoints[i] = Double.parseDouble(points[i]);
+                        }
+                        newTagData = new CurveTagData(curvePoints);
+                    } else if (tagEditorPane.getChildren().get(0) instanceof TableView) { // MLUC
+                        TableView<Map.Entry<String, String>> mlucTableView = (TableView) tagEditorPane.getChildren().get(0);
+                        MultiLocalizedUnicodeTagData mlucData = new MultiLocalizedUnicodeTagData();
+                        for (Map.Entry<String, String> entry : mlucTableView.getItems()) {
+                            String[] codes = entry.getKey().split("-");
+                            mlucData.addLocalizedString(codes[0], codes[1], entry.getValue());
+                        }
+                        newTagData = mlucData;
                     }
-                    iccProfile.writeTagData(selectedTag, newTagData);
+
+                    if (newTagData != null) {
+                        iccProfile.writeTagData(selectedTag, newTagData);
+                    }
                 } catch (IOException | NumberFormatException ex) {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
                     alert.setTitle("Error");
@@ -205,6 +233,9 @@ public class App extends Application {
                 return;
             }
 
+            boolean replaced = false;
+
+            // Search and replace in 'desc' tag
             try {
                 Tag descTag = iccProfile.getTagBySignature("desc");
                 if (descTag != null) {
@@ -215,20 +246,52 @@ public class App extends Application {
                         String newText = originalText.replace(searchText, replaceText);
                         if (!originalText.equals(newText)) {
                             iccProfile.writeTagData(descTag, new TextTagData(newText, textDescData.getCharset()));
-                            showAlert(Alert.AlertType.INFORMATION, "Success", "Media name replaced successfully.");
-                            // Refresh the UI to show changes
-                            displayTagData(descTag);
-                        } else {
-                            showAlert(Alert.AlertType.INFORMATION, "No Change", "Search text not found in media name.");
+                            replaced = true;
                         }
                     } else {
                         showAlert(Alert.AlertType.WARNING, "Unsupported Tag Type", "The 'desc' tag is not a text type.");
                     }
-                } else {
-                    showAlert(Alert.AlertType.WARNING, "Tag Not Found", "'desc' tag not found in the profile.");
                 }
             } catch (IOException ex) {
-                showAlert(Alert.AlertType.ERROR, "Error", "Error during search and replace: " + ex.getMessage());
+                showAlert(Alert.AlertType.ERROR, "Error", "Error during search and replace in 'desc' tag: " + ex.getMessage());
+            }
+
+            // Search and replace in 'MMK1' and 'MMK2' tags (experimental)
+            String[] mimakiTags = {"MMK1", "MMK2"};
+            for (String mimakiTagSignature : mimakiTags) {
+                try {
+                    Tag mimakiTag = iccProfile.getTagBySignature(mimakiTagSignature);
+                    if (mimakiTag != null) {
+                        TagData currentMimakiData = iccProfile.readTagData(mimakiTag);
+                        // Attempt to interpret as UTF-8 string
+                        String originalText = new String(currentMimakiData.toBytes(), StandardCharsets.UTF_8);
+                        String newText = originalText.replace(searchText, replaceText);
+                        if (!originalText.equals(newText)) {
+                            iccProfile.writeTagData(mimakiTag, new GenericTagData(newText.getBytes(StandardCharsets.UTF_8)));
+                            replaced = true;
+                        }
+                    }
+                } catch (IOException ex) {
+                    showAlert(Alert.AlertType.ERROR, "Error", "Error during search and replace in '" + mimakiTagSignature + "' tag: " + ex.getMessage());
+                }
+            }
+
+            if (replaced) {
+                showAlert(Alert.AlertType.INFORMATION, "Success", "Media name replaced successfully. (Experimental for MMK tags)");
+                // Refresh the UI to show changes
+                // Re-open the file to refresh all data
+                try {
+                    iccProfile = new ICCProfile(iccProfile.filePath); // Re-read the profile
+                    commonSplitPane.getItems().remove(headerEditor);
+                    headerEditor = createHeaderEditor(iccProfile.getHeader());
+                    commonSplitPane.getItems().add(0, headerEditor);
+                    ObservableList<Tag> tags = FXCollections.observableArrayList(iccProfile.getTags());
+                    tagTableView.setItems(tags);
+                } catch (IOException ex) {
+                    showAlert(Alert.AlertType.ERROR, "Error", "Error refreshing profile after save: " + ex.getMessage());
+                }
+            } else {
+                showAlert(Alert.AlertType.INFORMATION, "No Change", "Search text not found in any relevant media name tag.");
             }
         });
 
@@ -312,17 +375,50 @@ public class App extends Application {
     }
 
     private void displayTagData(Tag tag) {
+        tagEditorPane.getChildren().clear(); // Clear previous editor
         try {
             TagData tagData = iccProfile.readTagData(tag);
+            boolean isTextOrGeneric = (tagData instanceof TextTagData || tagData instanceof GenericTagData);
+            hexTextToggle.setDisable(!isTextOrGeneric);
+            encodingChoiceBox.setDisable(!isTextOrGeneric);
+
             if (tagData instanceof TextTagData) {
                 tagDataTextArea.setText(((TextTagData) tagData).getText());
+                tagEditorPane.getChildren().add(tagDataTextArea);
+            } else if (tagData instanceof XYZTagData) {
+                XYZTagData xyzData = (XYZTagData) tagData;
+                GridPane xyzEditor = new GridPane();
+                xyzEditor.setPadding(new Insets(10));
+                xyzEditor.setHgap(10);
+                xyzEditor.setVgap(5);
+                xyzEditor.addRow(0, new Label("X:"), new TextField(String.valueOf(xyzData.getX())));
+                xyzEditor.addRow(1, new Label("Y:"), new TextField(String.valueOf(xyzData.getY())));
+                xyzEditor.addRow(2, new Label("Z:"), new TextField(String.valueOf(xyzData.getZ())));
+                tagEditorPane.getChildren().add(xyzEditor);
+            } else if (tagData instanceof CurveTagData) {
+                CurveTagData curveData = (CurveTagData) tagData;
+                TextArea curveTextArea = new TextArea(curveData.toString());
+                tagEditorPane.getChildren().add(curveTextArea);
+            } else if (tagData instanceof MultiLocalizedUnicodeTagData) {
+                MultiLocalizedUnicodeTagData mlucData = (MultiLocalizedUnicodeTagData) tagData;
+                TableView<Map.Entry<String, String>> mlucTableView = new TableView<>();
+                TableColumn<Map.Entry<String, String>, String> langCountryCol = new TableColumn<>("Language-Country");
+                langCountryCol.setCellValueFactory(p -> new ReadOnlyObjectWrapper<>(p.getValue().getKey()));
+                TableColumn<Map.Entry<String, String>, String> textCol = new TableColumn<>("Text");
+                textCol.setCellValueFactory(p -> new ReadOnlyObjectWrapper<>(p.getValue().getValue()));
+                mlucTableView.getColumns().addAll(langCountryCol, textCol);
+                mlucTableView.setItems(FXCollections.observableArrayList(mlucData.getLocalizedStrings().entrySet()));
+                tagEditorPane.getChildren().add(mlucTableView);
             } else if (tagData instanceof GenericTagData) {
                 tagDataTextArea.setText(bytesToHex(tagData.toBytes()));
+                tagEditorPane.getChildren().add(tagDataTextArea);
             } else {
                 tagDataTextArea.setText("Unsupported Tag Data Type");
+                tagEditorPane.getChildren().add(tagDataTextArea);
             }
         } catch (IOException e) {
             tagDataTextArea.setText("Error reading tag data: " + e.getMessage());
+            tagEditorPane.getChildren().add(tagDataTextArea);
         }
     }
 

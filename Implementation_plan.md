@@ -24,7 +24,7 @@ Develop a **cross‑platform ICC profile editor** in **Java + JavaFX** with:
 
 > **Rule:** After completing and verifying each step, mark it with ✅ and run:
 > ```bash
-> git add . 
+> git add .
 > git commit -m "✅ Step X completed: <short description>"
 > git push origin main
 > ```
@@ -81,3 +81,13 @@ Develop a **cross‑platform ICC profile editor** in **Java + JavaFX** with:
 **Tasks:**
 - Write comprehensive unit tests.
 - Configure JPackage for distribution.
+
+### 10. **Enhance Mimaki Tools**
+**Tasks:**
+- Implement media name search/replace for `MMK1` and `MMK2` tags.
+- Research and implement Cxf→DevS/CIED conversion.
+
+### ✅ 11. **Implement Specialized Tag Editors**
+**Tasks:**
+- Extend `TagType` and `TagData` to support more ICC standard tag types (e.g., `XYZType`, `curvType`).
+- Develop specialized UI components for editing each standard tag type.
