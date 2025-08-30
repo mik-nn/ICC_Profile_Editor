@@ -28,14 +28,47 @@ public class ICCProfile {
         return tags;
     }
 
-    public byte[] readTagData(Tag tag) throws IOException {
+    public TagData readTagData(Tag tag) throws IOException {
         try (RandomAccessFile raf = new RandomAccessFile(filePath, "r")) {
             raf.seek(tag.getOffset());
-            int sizeToRead = (int) Math.min(tag.getSize(), 1024);
-            byte[] data = new byte[sizeToRead];
+            byte[] data = new byte[(int) tag.getSize()];
             raf.readFully(data);
-            return data;
+
+            TagType type = TagType.fromSignature(tag.getSignature());
+
+            switch (type) {
+                case TEXT_TYPE:
+                    // Assuming textType tags are null-terminated and potentially padded
+                    // The first 4 bytes are the tag type signature, then 4 bytes for reserved
+                    // The actual text starts from offset 8
+                    if (data.length >= 8) {
+                        String text = new String(data, 8, data.length - 8, StandardCharsets.UTF_8);
+                        return new TextTagData(text.trim(), StandardCharsets.UTF_8);
+                    }
+                    break;
+                case UNKNOWN:
+                default:
+                    // For now, return a generic TagData for unknown types
+                    return new GenericTagData(data);
+            }
+            return new GenericTagData(data);
         }
+    }
+
+    public void writeTagData(Tag tag, TagData tagData) throws IOException {
+        try (RandomAccessFile raf = new RandomAccessFile(filePath, "rw")) {
+            raf.seek(tag.getOffset());
+            raf.write(tagData.toBytes());
+        }
+    }
+
+    public Tag getTagBySignature(String signature) {
+        for (Tag tag : tags) {
+            if (tag.getSignature().equals(signature)) {
+                return tag;
+            }
+        }
+        return null;
     }
 
     private ICCHeader parseHeader(RandomAccessFile raf) throws IOException {

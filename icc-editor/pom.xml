@@ -60,7 +60,24 @@
                 <configuration>
                     <!-- Change this to your actual main class -->
                     <mainClass>com.mik.icc.icceditor.App</mainClass>
+                    <jlinkZip>true</jlinkZip>
+                    <jlinkImageName>icc-profile-editor</jlinkImageName>
+                    <launcher>ICCProfileEditor</launcher>
+                    <stripDebug>true</stripDebug>
+                    <compress>2</compress>
+                    <noHeaderFiles>true</noHeaderFiles>
+                    <noManPages>true</noManPages>
                 </configuration>
+                <executions>
+                    <execution>
+                        <id>default-cli</id>
+                        <goals>
+                            <goal>clean</goal>
+                            <goal>jlink</goal>
+                            <goal>jpackage</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
 
             <!-- Surefire for JUnit 5 -->
