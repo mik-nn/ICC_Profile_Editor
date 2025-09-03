@@ -44,17 +44,14 @@ public class ICCProfile {
 
             switch (type) {
                 case TEXT_TYPE:
-                    // Assuming textType tags are null-terminated and potentially padded
-                    // The first 4 bytes are the tag type signature, then 4 bytes for reserved
-                    // The actual text starts from offset 8
                     if (data.length >= 8) {
-                        String text = new String(data, 8, data.length - 8, StandardCharsets.UTF_8);
-                        return new TextTagData(text.trim(), StandardCharsets.UTF_8);
+                        String text = new String(data, 8, data.length - 8, StandardCharsets.UTF_8).trim();
+                        return new TextTagData(text, StandardCharsets.UTF_8);
                     }
                     break;
                 case XYZ_TYPE:
-                    if (data.length >= 12) {
-                        ByteBuffer xyzBuffer = ByteBuffer.wrap(data, 0, 12).order(ByteOrder.BIG_ENDIAN);
+                    if (data.length >= 20) {
+                        ByteBuffer xyzBuffer = ByteBuffer.wrap(data, 8, 12).order(ByteOrder.BIG_ENDIAN);
                         double x = XYZTagData.iccS15Fixed16ToFloat(xyzBuffer.getInt());
                         double y = XYZTagData.iccS15Fixed16ToFloat(xyzBuffer.getInt());
                         double z = XYZTagData.iccS15Fixed16ToFloat(xyzBuffer.getInt());
@@ -62,9 +59,8 @@ public class ICCProfile {
                     }
                     break;
                 case CURVE_TYPE:
-                    if (data.length >= 8) { // 4 bytes for count, 4 bytes for reserved
-                        ByteBuffer curveBuffer = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
-                        curveBuffer.position(4); // Skip type signature and reserved
+                    if (data.length >= 12) {
+                        ByteBuffer curveBuffer = ByteBuffer.wrap(data, 8, data.length - 8).order(ByteOrder.BIG_ENDIAN);
                         int count = curveBuffer.getInt();
                         double[] curvePoints = new double[count];
                         for (int i = 0; i < count; i++) {
@@ -74,16 +70,16 @@ public class ICCProfile {
                     }
                     break;
                 case MLUC_TYPE:
-                    if (data.length >= 16) { // type signature (4) + reserved (4) + numRecords (4) + recordSize (4)
-                        ByteBuffer mlucBuffer = ByteBuffer.wrap(data).order(ByteOrder.BIG_ENDIAN);
-                        mlucBuffer.position(8); // Skip type signature and reserved
+                    if (data.length >= 16) {
+                        ByteBuffer mlucBuffer = ByteBuffer.wrap(data, 8, data.length - 8).order(ByteOrder.BIG_ENDIAN);
                         int numRecords = mlucBuffer.getInt();
                         int recordSize = mlucBuffer.getInt();
 
                         MultiLocalizedUnicodeTagData mlucData = new MultiLocalizedUnicodeTagData();
+                        long baseOffset = tag.getOffset() + 8; 
                         for (int i = 0; i < numRecords; i++) {
                             int entryStart = 16 + (i * recordSize);
-                            mlucBuffer.position(entryStart);
+                            mlucBuffer.position(entryStart - 8);
                             byte[] languageCodeBytes = new byte[2];
                             mlucBuffer.get(languageCodeBytes);
                             byte[] countryCodeBytes = new byte[2];
@@ -93,10 +89,9 @@ public class ICCProfile {
                             int offset = mlucBuffer.getInt();
                             int length = mlucBuffer.getInt();
 
-                            // Read string data
                             byte[] stringBytes = new byte[length];
-                            mlucBuffer.position(offset);
-                            mlucBuffer.get(stringBytes);
+                            raf.seek(baseOffset + offset);
+                            raf.readFully(stringBytes);
                             String text = new String(stringBytes, StandardCharsets.UTF_16BE);
                             mlucData.addLocalizedString(languageCode, countryCode, text);
                         }
@@ -105,7 +100,6 @@ public class ICCProfile {
                     break;
                 case UNKNOWN:
                 default:
-                    // For now, return a generic TagData for unknown types
                     return new GenericTagData(data);
             }
             return new GenericTagData(data);
@@ -122,22 +116,22 @@ public class ICCProfile {
     public void writeHeader(ICCHeader header) throws IOException {
         try (RandomAccessFile raf = new RandomAccessFile(filePath, "rw")) {
             raf.seek(0);
-            raf.writeInt((int) header.size);
-            writeString(raf, header.cmmType, 4);
-            writeVersion(raf, header.version);
-            writeString(raf, header.deviceClass, 4);
-            writeString(raf, header.colorSpace, 4);
-            writeString(raf, header.pcs, 4);
-            writeDateTime(raf, header.creationDateTime);
-            writeString(raf, header.signature, 4);
-            writeString(raf, header.primaryPlatform, 4);
-            raf.writeInt((int) header.flags);
-            writeString(raf, header.manufacturer, 4);
-            writeString(raf, header.model, 4);
-            raf.writeLong(header.attributes);
-            raf.writeInt(header.renderingIntent);
+            raf.writeInt((int) header.getSize());
+            writeString(raf, header.getCmmType(), 4);
+            writeVersion(raf, header.getVersion());
+            writeString(raf, header.getDeviceClass(), 4);
+            writeString(raf, header.getColorSpace(), 4);
+            writeString(raf, header.getPcs(), 4);
+            writeDateTime(raf, header.getCreationDateTime());
+            writeString(raf, header.getSignature(), 4);
+            writeString(raf, header.getPrimaryPlatform(), 4);
+            raf.writeInt((int) header.getFlags());
+            writeString(raf, header.getManufacturer(), 4);
+            writeString(raf, header.getModel(), 4);
+            raf.writeLong(header.getAttributes());
+            raf.writeInt(header.getRenderingIntent());
             raf.skipBytes(12); // Skip illuminant
-            writeString(raf, header.creator, 4);
+            writeString(raf, header.getCreator(), 4);
         }
     }
 
@@ -154,22 +148,22 @@ public class ICCProfile {
         raf.seek(0);
         ICCHeader header = new ICCHeader();
 
-        header.size = raf.readInt();
-        header.cmmType = readString(raf, 4);
-        header.version = readVersion(raf);
-        header.deviceClass = readString(raf, 4);
-        header.colorSpace = readString(raf, 4);
-        header.pcs = readString(raf, 4);
-        header.creationDateTime = readDateTime(raf);
-        header.signature = readString(raf, 4);
-        header.primaryPlatform = readString(raf, 4);
-        header.flags = raf.readInt();
-        header.manufacturer = readString(raf, 4);
-        header.model = readString(raf, 4);
-        header.attributes = raf.readLong();
-        header.renderingIntent = raf.readInt();
+        header.setSize(raf.readInt());
+        header.setCmmType(readString(raf, 4));
+        header.setVersion(readVersion(raf));
+        header.setDeviceClass(readString(raf, 4));
+        header.setColorSpace(readString(raf, 4));
+        header.setPcs(readString(raf, 4));
+        header.setCreationDateTime(readDateTime(raf));
+        header.setSignature(readString(raf, 4));
+        header.setPrimaryPlatform(readString(raf, 4));
+        header.setFlags(raf.readInt());
+        header.setManufacturer(readString(raf, 4));
+        header.setModel(readString(raf, 4));
+        header.setAttributes(raf.readLong());
+        header.setRenderingIntent(raf.readInt());
         raf.skipBytes(12); // Skip illuminant
-        header.creator = readString(raf, 4);
+        header.setCreator(readString(raf, 4));
 
         return header;
     }
@@ -213,28 +207,30 @@ public class ICCProfile {
         byte[] bytes = value.getBytes(StandardCharsets.US_ASCII);
         raf.write(bytes);
         if (bytes.length < length) {
-            raf.write(new byte[length - bytes.length]); // Pad with zeros
+            raf.write(new byte[length - bytes.length]); 
         }
     }
 
     private void writeVersion(RandomAccessFile raf, String version) throws IOException {
         String[] parts = version.split("\\.");
-        raf.writeByte(Integer.parseInt(parts[0]));
-        raf.writeByte((Integer.parseInt(parts[1]) << 4) | Integer.parseInt(parts[2]));
-        raf.writeShort(0); // Reserved
+        byte major = Byte.parseByte(parts[0]);
+        byte minor = Byte.parseByte(parts[1]);
+        byte bugfix = Byte.parseByte(parts[2]);
+        raf.writeByte(major);
+        raf.writeByte((minor << 4) | bugfix);
+        raf.writeShort(0); 
     }
 
     private void writeDateTime(RandomAccessFile raf, String dateTime) throws IOException {
-        // Assuming dateTime is in "YYYY-MM-DD HH:MM:SS" format
         String[] dateTimeParts = dateTime.split(" ");
         String[] dateParts = dateTimeParts[0].split("-");
         String[] timeParts = dateTimeParts[1].split(":");
 
-        raf.writeShort(Integer.parseInt(dateParts[0])); // Year
-        raf.writeShort(Integer.parseInt(dateParts[1])); // Month
-        raf.writeShort(Integer.parseInt(dateParts[2])); // Day
-        raf.writeShort(Integer.parseInt(timeParts[0])); // Hours
-        raf.writeShort(Integer.parseInt(timeParts[1])); // Minutes
-        raf.writeShort(Integer.parseInt(timeParts[2])); // Seconds
+        raf.writeShort(Integer.parseInt(dateParts[0])); 
+        raf.writeShort(Integer.parseInt(dateParts[1])); 
+        raf.writeShort(Integer.parseInt(dateParts[2])); 
+        raf.writeShort(Integer.parseInt(timeParts[0])); 
+        raf.writeShort(Integer.parseInt(timeParts[1])); 
+        raf.writeShort(Integer.parseInt(timeParts[2])); 
     }
 }

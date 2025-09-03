@@ -69,7 +69,18 @@ public class App extends Application {
         commonSplitPane.getItems().addAll(headerEditor, tagSplitPane);
         commonTabPane.setCenter(commonSplitPane);
 
-        HBox buttonBox = new HBox(10, editButton, saveButton);
+        Button saveHeaderButton = new Button("Save Header");
+        saveHeaderButton.setOnAction(e -> {
+            if (iccProfile != null) {
+                try {
+                    iccProfile.writeHeader(iccProfile.getHeader());
+                    showAlert(Alert.AlertType.INFORMATION, "Success", "Header saved successfully.");
+                } catch (IOException ex) {
+                    showAlert(Alert.AlertType.ERROR, "Error", "Error saving header: " + ex.getMessage());
+                }
+            }
+        });
+        HBox buttonBox = new HBox(10, editButton, saveButton, saveHeaderButton);
         buttonBox.setPadding(new Insets(10));
         commonTabPane.setBottom(buttonBox);
         commonTab.setContent(commonTabPane);
@@ -150,6 +161,7 @@ public class App extends Application {
             if (selectedTag != null) {
                 try {
                     TagData newTagData = null;
+                    if (tagEditorPane.getChildren().isEmpty()) return;
                     if (tagEditorPane.getChildren().get(0) instanceof TextArea) { // Text, Generic, or Curve
                         TextArea currentTextArea = (TextArea) tagEditorPane.getChildren().get(0);
                         if (TagType.fromSignature(selectedTag.getSignature()) == TagType.TEXT_TYPE) {
@@ -189,6 +201,7 @@ public class App extends Application {
 
                     if (newTagData != null) {
                         iccProfile.writeTagData(selectedTag, newTagData);
+                        showAlert(Alert.AlertType.INFORMATION, "Success", "Tag data saved successfully.");
                     }
                 } catch (IOException | NumberFormatException ex) {
                     Alert alert = new Alert(Alert.AlertType.ERROR);
@@ -330,6 +343,8 @@ public class App extends Application {
                 headerEditor = createHeaderEditor(iccProfile.getHeader());
                 commonSplitPane.getItems().add(0, headerEditor);
 
+                tagTableView.getSelectionModel().clearSelection();
+                tagTableView.getItems().clear();
                 ObservableList<Tag> tags = FXCollections.observableArrayList(iccProfile.getTags());
                 tagTableView.setItems(tags);
                 this.stage.setTitle("ICC Profile Editor - " + file.getName());
@@ -362,6 +377,8 @@ public class App extends Application {
                 headerEditor = createHeaderEditor(iccProfile.getHeader());
                 commonSplitPane.getItems().add(0, headerEditor);
 
+                tagTableView.getSelectionModel().clearSelection();
+                tagTableView.getItems().clear();
                 ObservableList<Tag> tags = FXCollections.observableArrayList(iccProfile.getTags());
                 tagTableView.setItems(tags);
                 this.stage.setTitle("ICC Profile Editor - (Copied) " + file.getName());
@@ -381,22 +398,7 @@ public class App extends Application {
 
             if (tagData instanceof TextTagData) {
                 tagDataTextArea.setText(((TextTagData) tagData).getText());
-                tagDataTextArea.setEditable(false); // Default to non-editable
-                tagDataTextArea.setOnMouseClicked(event -> {
-                    if (event.getClickCount() == 2) {
-                        tagDataTextArea.setEditable(true);
-                    }
-                });
-                tagDataTextArea.focusedProperty().addListener((obs, oldVal, newVal) -> {
-                    if (!newVal) {
-                        tagDataTextArea.setEditable(false);
-                        // Save logic will be handled by saveButton
-                    }
-                });
-                tagDataTextArea.setOnAction(event -> {
-                    tagDataTextArea.setEditable(false);
-                    // Save logic will be handled by saveButton
-                });
+                setupEditableTextArea(tagDataTextArea);
                 tagEditorPane.getChildren().add(tagDataTextArea);
             } else if (tagData instanceof XYZTagData) {
                 XYZTagData xyzData = (XYZTagData) tagData;
@@ -411,22 +413,7 @@ public class App extends Application {
             } else if (tagData instanceof CurveTagData) {
                 CurveTagData curveData = (CurveTagData) tagData;
                 TextArea curveTextArea = new TextArea(curveData.toString());
-                curveTextArea.setEditable(false);
-                curveTextArea.setOnMouseClicked(event -> {
-                    if (event.getClickCount() == 2) {
-                        curveTextArea.setEditable(true);
-                    }
-                });
-                curveTextArea.focusedProperty().addListener((obs, oldVal, newVal) -> {
-                    if (!newVal) {
-                        curveTextArea.setEditable(false);
-                        // Save logic will be handled by saveButton
-                    }
-                });
-                curveTextArea.setOnAction(event -> {
-                    curveTextArea.setEditable(false);
-                    // Save logic will be handled by saveButton
-                });
+                setupEditableTextArea(curveTextArea);
                 tagEditorPane.getChildren().add(curveTextArea);
             } else if (tagData instanceof MultiLocalizedUnicodeTagData) {
                 MultiLocalizedUnicodeTagData mlucData = (MultiLocalizedUnicodeTagData) tagData;
@@ -440,22 +427,7 @@ public class App extends Application {
                 tagEditorPane.getChildren().add(mlucTableView);
             } else if (tagData instanceof GenericTagData) {
                 tagDataTextArea.setText(bytesToHex(tagData.toBytes()));
-                tagDataTextArea.setEditable(false); // Default to non-editable
-                tagDataTextArea.setOnMouseClicked(event -> {
-                    if (event.getClickCount() == 2) {
-                        tagDataTextArea.setEditable(true);
-                    }
-                });
-                tagDataTextArea.focusedProperty().addListener((obs, oldVal, newVal) -> {
-                    if (!newVal) {
-                        tagDataTextArea.setEditable(false);
-                        // Save logic will be handled by saveButton
-                    }
-                });
-                tagDataTextArea.setOnAction(event -> {
-                    tagDataTextArea.setEditable(false);
-                    // Save logic will be handled by saveButton
-                });
+                setupEditableTextArea(tagDataTextArea);
                 tagEditorPane.getChildren().add(tagDataTextArea);
             } else {
                 tagDataTextArea.setText("Unsupported Tag Data Type");
@@ -465,6 +437,25 @@ public class App extends Application {
             tagDataTextArea.setText("Error reading tag data: " + e.getMessage());
             tagEditorPane.getChildren().add(tagDataTextArea);
         }
+    }
+
+    private void setupEditableTextArea(TextArea textArea) {
+        textArea.setEditable(false);
+        textArea.setOnMouseClicked(event -> {
+            if (event.getClickCount() == 2) {
+                textArea.setEditable(true);
+            }
+        });
+        textArea.focusedProperty().addListener((obs, oldVal, newVal) -> {
+            if (!newVal) {
+                textArea.setEditable(false);
+            }
+        });
+        textArea.setOnKeyPressed(event -> {
+            if (event.getCode() == javafx.scene.input.KeyCode.ENTER) {
+                textArea.setEditable(false);
+            }
+        });
     }
 
     private String bytesToHex(byte[] bytes) {
@@ -490,21 +481,21 @@ public class App extends Application {
         grid.setVgap(5);
 
         int row = 0;
-        grid.addRow(row++, new Label("Size:"), createEditableTextField(String.valueOf(header.size), newValue -> header.size = Long.parseLong(newValue)));
-        grid.addRow(row++, new Label("CMM Type:"), createEditableTextField(header.cmmType, newValue -> header.cmmType = newValue));
-        grid.addRow(row++, new Label("Version:"), createEditableTextField(header.version, newValue -> header.version = newValue));
-        grid.addRow(row++, new Label("Device Class:"), createEditableTextField(header.deviceClass, newValue -> header.deviceClass = newValue));
-        grid.addRow(row++, new Label("Color Space:"), createEditableTextField(header.colorSpace, newValue -> header.colorSpace = newValue));
-        grid.addRow(row++, new Label("PCS:"), createEditableTextField(header.pcs, newValue -> header.pcs = newValue));
-        grid.addRow(row++, new Label("Creation Date/Time:"), createEditableTextField(header.creationDateTime, newValue -> header.creationDateTime = newValue));
-        grid.addRow(row++, new Label("Signature:"), createEditableTextField(header.signature, newValue -> header.signature = newValue));
-        grid.addRow(row++, new Label("Primary Platform:"), createEditableTextField(header.primaryPlatform, newValue -> header.primaryPlatform = newValue));
-        grid.addRow(row++, new Label("Flags:"), createEditableTextField(String.valueOf(header.flags), newValue -> header.flags = Long.parseLong(newValue)));
-        grid.addRow(row++, new Label("Manufacturer:"), createEditableTextField(header.manufacturer, newValue -> header.manufacturer = newValue));
-        grid.addRow(row++, new Label("Model:"), createEditableTextField(header.model, newValue -> header.model = newValue));
-        grid.addRow(row++, new Label("Attributes:"), createEditableTextField(String.valueOf(header.attributes), newValue -> header.attributes = Long.parseLong(newValue)));
-        grid.addRow(row++, new Label("Rendering Intent:"), createEditableTextField(header.getRenderingIntentString(), newValue -> header.renderingIntent = parseRenderingIntent(newValue)));
-        grid.addRow(row++, new Label("Creator:"), createEditableTextField(header.creator, newValue -> header.creator = newValue));
+        grid.addRow(row++, new Label("Size:"), createEditableTextField(String.valueOf(header.getSize()), newValue -> header.setSize(Long.parseLong(newValue))));
+        grid.addRow(row++, new Label("CMM Type:"), createEditableTextField(header.getCmmType(), newValue -> header.setCmmType(newValue)));
+        grid.addRow(row++, new Label("Version:"), createEditableTextField(header.getVersion(), newValue -> header.setVersion(newValue)));
+        grid.addRow(row++, new Label("Device Class:"), createEditableTextField(header.getDeviceClass(), newValue -> header.setDeviceClass(newValue)));
+        grid.addRow(row++, new Label("Color Space:"), createEditableTextField(header.getColorSpace(), newValue -> header.setColorSpace(newValue)));
+        grid.addRow(row++, new Label("PCS:"), createEditableTextField(header.getPcs(), newValue -> header.setPcs(newValue)));
+        grid.addRow(row++, new Label("Creation Date/Time:"), createEditableTextField(header.getCreationDateTime(), newValue -> header.setCreationDateTime(newValue)));
+        grid.addRow(row++, new Label("Signature:"), createEditableTextField(header.getSignature(), newValue -> header.setSignature(newValue)));
+        grid.addRow(row++, new Label("Primary Platform:"), createEditableTextField(header.getPrimaryPlatform(), newValue -> header.setPrimaryPlatform(newValue)));
+        grid.addRow(row++, new Label("Flags:"), createEditableTextField(String.valueOf(header.getFlags()), newValue -> header.setFlags(Long.parseLong(newValue))));
+        grid.addRow(row++, new Label("Manufacturer:"), createEditableTextField(header.getManufacturer(), newValue -> header.setManufacturer(newValue)));
+        grid.addRow(row++, new Label("Model:"), createEditableTextField(header.getModel(), newValue -> header.setModel(newValue)));
+        grid.addRow(row++, new Label("Attributes:"), createEditableTextField(String.valueOf(header.getAttributes()), newValue -> header.setAttributes(Long.parseLong(newValue))));
+        grid.addRow(row++, new Label("Rendering Intent:"), createEditableTextField(header.getRenderingIntentString(), newValue -> header.setRenderingIntent(parseRenderingIntent(newValue))));
+        grid.addRow(row++, new Label("Creator:"), createEditableTextField(header.getCreator(), newValue -> header.setCreator(newValue)));
 
         return grid;
     }
@@ -521,11 +512,6 @@ public class App extends Application {
             if (!newVal) {
                 textField.setEditable(false);
                 onSave.accept(textField.getText());
-                try {
-                    iccProfile.writeHeader(iccProfile.getHeader());
-                } catch (IOException e) {
-                    showAlert(Alert.AlertType.ERROR, "Error", "Error writing header: " + e.getMessage());
-                }
             }
         });
         textField.setOnAction(event -> {
@@ -541,7 +527,7 @@ public class App extends Application {
             case "Relative Colorimetric" -> 1;
             case "Saturation" -> 2;
             case "Absolute Colorimetric" -> 3;
-            default -> -1; // Indicate unknown or error
+            default -> throw new IllegalArgumentException("Unknown rendering intent: " + intent);
         };
     }
 
@@ -576,11 +562,11 @@ public class App extends Application {
             try {
                 double value = Double.parseDouble(textField.getText());
                 if (field.equals("x")) {
-                    // xyzData.setX(value); // Need setter in XYZTagData
+                    xyzData.setX(value);
                 } else if (field.equals("y")) {
-                    // xyzData.setY(value); // Need setter in XYZTagData
+                    xyzData.setY(value);
                 } else if (field.equals("z")) {
-                    // xyzData.setZ(value); // Need setter in XYZTagData
+                    xyzData.setZ(value);
                 }
                 // Save logic will be handled by saveButton
             } catch (NumberFormatException e) {
